@@ -13,6 +13,9 @@ from database import get_db, User
 
 # Configuration
 JWT_SECRET = os.getenv("JWT_SECRET")
+if not JWT_SECRET:
+    print("CRITICAL WARNING: JWT_SECRET not found! Auth will fail.")
+
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRY_HOURS = 24 * 7  # 1 week
 
