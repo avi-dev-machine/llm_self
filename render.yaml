@@ -17,12 +17,9 @@ services:
       - key: GOOGLE_CLIENT_SECRET
         sync: false
       - key: FRONTEND_URL
-        fromService:
-          type: web
-          name: math-agent-frontend
-          property: url
+        sync: false  # You must set this to your Frontend URL (e.g., https://math-agent-frontend.onrender.com)
 
-  # Frontend Service (Static Site with Node)
+  # Frontend Service
   - type: web
     name: math-agent-frontend
     env: node
@@ -31,7 +28,4 @@ services:
     startCommand: npm start
     envVars:
       - key: NEXT_PUBLIC_API_URL
-        fromService:
-          type: web
-          name: math-agent-backend
-          property: url
+        sync: false  # You must set this to your Backend URL (e.g., https://math-agent-backend.onrender.com)
