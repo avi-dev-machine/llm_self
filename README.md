@@ -1,3 +1,13 @@
+---
+title: Math Agent
+emoji: 🧮
+colorFrom: indigo
+colorTo: purple
+sdk: docker
+pinned: false
+app_port: 7860
+---
+
 # 🧮 Math Agent - JEE/Olympiad Problem Solver
 
 A conversational AI math tutor for JEE and Olympiad preparation. Features step-by-step solutions with LaTeX rendering, graph generation, user authentication, and chat history.
