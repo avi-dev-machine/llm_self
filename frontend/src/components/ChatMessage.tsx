@@ -61,7 +61,7 @@ export default function ChatMessage({ message, userAvatar, userName }: ChatMessa
         {message.has_graph && message.graph_path && (
           <div className="graph-container">
             <img
-              src={`${process.env.NEXT_PUBLIC_API_URL}${message.graph_path}`}
+              src={message.graph_path.startsWith('http') ? message.graph_path : `${process.env.NEXT_PUBLIC_API_URL}${message.graph_path}`}
               alt="Generated graph"
               onError={(e) => {
                 (e.target as HTMLImageElement).style.display = 'none';

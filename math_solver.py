@@ -11,14 +11,21 @@ class MathSolver:
     """Solves JEE/Olympiad math problems using Groq AI."""
     
     def __init__(self, api_key: str):
-        self.client = OpenAI(
-            api_key=api_key,
-            base_url="https://api.groq.com/openai/v1"
-        )
+        if api_key:
+            self.client = OpenAI(
+                api_key=api_key,
+                base_url="https://api.groq.com/openai/v1"
+            )
+        else:
+            self.client = None
+            
         self.model = "llama-3.3-70b-versatile"
     
     def solve(self, problem: str) -> str:
         """Send problem to AI and get step-by-step solution."""
+        if not self.client:
+            return "Error: API key not configured."
+
         try:
             response = self.client.chat.completions.create(
                 model=self.model,

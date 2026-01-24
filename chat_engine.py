@@ -10,6 +10,7 @@ from database import Conversation, Message
 from math_solver import MathSolver
 from graph_renderer import GraphRenderer
 from prompts import GRAPH_KEYWORDS
+from firebase_utils import upload_graph
 
 # Graph offer phrases to detect when AI should offer graph
 GRAPH_OFFER_PATTERNS = [
@@ -118,7 +119,18 @@ class ChatEngine:
         
         if code:
             img_path, error = self.renderer.render(code)
-            return img_path
+            if img_path:
+                # Try uploading to Firebase
+                public_url = upload_graph(img_path)
+                if public_url:
+                    return public_url
+                
+                # Fallback to local path relative to API
+                # img_path is like "outputs/xyz.png"
+                # We return "/graph/xyz.png" which maps to the static file route
+                filename = img_path.split("/")[-1]
+                return f"/graph/{filename}"
+            
         return None
     
     def generate_title(self, first_message: str) -> str:
