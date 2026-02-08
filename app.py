@@ -3,6 +3,9 @@ JEE/Olympiad Math Agent - FastAPI Backend
 Conversational AI with OAuth authentication and chat history.
 """
 
+from dotenv import load_dotenv
+load_dotenv()  # Load env vars FIRST
+
 import os
 import base64
 from datetime import datetime
@@ -44,13 +47,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize chat engine
-API_KEY = os.getenv("GROQ_API_KEY")
-if not API_KEY:
-    print("WARNING: GROQ_API_KEY not found in environment variables. Chat features will fail.")
-
+# Initialize chat engine with local Phi-4 model
+print("Initializing ChatEngine with local Phi-4 model...")
 try:
-    chat_engine = ChatEngine(api_key=API_KEY)
+    chat_engine = ChatEngine()
+    print("ChatEngine initialized successfully!")
 except Exception as e:
     print(f"Error initializing ChatEngine: {e}")
     chat_engine = None
@@ -147,7 +148,7 @@ async def send_message(
     db.commit()
     
     # Get AI response
-    response_text, offer_graph, graph_path = chat_engine.chat(
+    response_text, offer_graph, graph_url = chat_engine.chat(
         request.content,
         conversation,
         db
@@ -158,8 +159,8 @@ async def send_message(
         conversation_id=conversation.id,
         role="assistant",
         content=response_text,
-        has_graph=graph_path is not None,
-        graph_path=graph_path
+        has_graph=graph_url is not None,
+        graph_path=graph_url  # Now stores Firebase URL or local path
     )
     db.add(assistant_msg)
     
@@ -168,11 +169,14 @@ async def send_message(
     db.commit()
     db.refresh(assistant_msg)
     
-    # Prepare response
+    # For Firebase URLs, no need for base64
+    # For local paths, convert to base64
     graph_base64 = None
-    if graph_path and os.path.exists(graph_path):
-        with open(graph_path, "rb") as f:
-            graph_base64 = base64.b64encode(f.read()).decode("utf-8")
+    if graph_url and not graph_url.startswith('http'):
+        local_path = graph_url.replace('/graph/', 'outputs/')
+        if os.path.exists(local_path):
+            with open(local_path, "rb") as f:
+                graph_base64 = base64.b64encode(f.read()).decode("utf-8")
     
     return ChatResponse(
         message=MessageResponse(
