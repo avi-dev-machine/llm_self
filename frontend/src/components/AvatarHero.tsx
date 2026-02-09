@@ -3,7 +3,7 @@
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Sphere, MeshDistortMaterial, Float, Stars } from '@react-three/drei';
 import { useRef } from 'react';
-import { motion } from 'framer-motion-3d';
+
 import * as THREE from 'three';
 
 function AnimatedOrb() {
