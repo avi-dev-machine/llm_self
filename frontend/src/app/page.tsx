@@ -1,72 +1,28 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { api, Message, ConversationListItem } from '@/lib/api';
-import ChatMessage from '@/components/ChatMessage';
-import Sidebar from '@/components/Sidebar';
+import { api, Message } from '@/lib/api';
+import AvatarHero from '@/components/AvatarHero';
 import ChatInput from '@/components/ChatInput';
-import AuthScreen from '@/components/AuthScreen';
-import { Menu, Plus } from 'lucide-react';
+import ChatBubble from '@/components/ChatBubble';
+import { Menu, MoreHorizontal } from 'lucide-react';
 
 export default function Home() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [user, setUser] = useState<{ name: string; avatar_url: string | null } | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [conversations, setConversations] = useState<ConversationListItem[]>([]);
-  const [currentConversationId, setCurrentConversationId] = useState<number | null>(null);
   const [isSending, setIsSending] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  
+  const [showHero, setShowHero] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const checkAuth = async () => {
-      const token = api.getToken();
-      if (token) {
-        try {
-          const userData = await api.getMe();
-          setUser(userData);
-          setIsAuthenticated(true);
-          loadConversations();
-        } catch {
-          api.setToken(null);
-        }
-      }
-      setIsLoading(false);
-    };
-    checkAuth();
-  }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const loadConversations = async () => {
-    try {
-      const convs = await api.getConversations();
-      setConversations(convs);
-    } catch { /* ignore */ }
-  };
-
-  const loadConversation = async (id: number) => {
-    try {
-      const conv = await api.getConversation(id);
-      setMessages(conv.messages);
-      setCurrentConversationId(id);
-      setSidebarOpen(false);
-    } catch { /* ignore */ }
-  };
-
-  const startNewChat = () => {
-    setMessages([]);
-    setCurrentConversationId(null);
-    setSidebarOpen(false);
-  };
-
   const handleSend = async (content: string) => {
     if (!content.trim() || isSending) return;
+    
+    // Hide Hero on first message
+    if (messages.length === 0) setShowHero(false);
 
     const tempUserMsg: Message = {
       id: Date.now(),
@@ -76,99 +32,87 @@ export default function Home() {
       graph_path: null,
       created_at: new Date().toISOString(),
     };
+
     setMessages(prev => [...prev, tempUserMsg]);
     setIsSending(true);
 
     try {
-      const response = await api.sendMessage(content, currentConversationId || undefined);
-      
-      if (!currentConversationId) {
-        setCurrentConversationId(response.conversation_id);
-        loadConversations();
-      }
-
+      // For now using session-less flow or create new conversation silently
+      // In real PWA we'd check auth, here we assume open or handle internally
+      const response = await api.sendMessage(content);
       setMessages(prev => [...prev, response.message]);
     } catch (error) {
       console.error(error);
-      setMessages(prev => prev.filter(m => m.id !== tempUserMsg.id));
+      const errorMsg: Message = {
+        id: Date.now(),
+        role: 'assistant',
+        content: "I'm having trouble connecting right now. Please try again.",
+        has_graph: false,
+        graph_path: null,
+        created_at: new Date().toISOString(),
+      };
+      setMessages(prev => [...prev, errorMsg]);
     } finally {
       setIsSending(false);
     }
   };
 
-  const handleLogout = () => {
-    api.setToken(null);
-    setIsAuthenticated(false);
-    setUser(null);
-    setMessages([]);
-  };
-
-  if (isLoading) return <div className="loading-container">...</div>;
-  if (!isAuthenticated) return <AuthScreen />;
-
   return (
-    <>
-      <div className="blob-container">
-        <div className="blob blob-1" />
-        <div className="blob blob-2" />
-        <div className="blob blob-3" />
-      </div>
+    <div className="flex flex-col h-full relative">
+      <div className="glow-orb top-[-10%] left-[-10%]" />
+      
+      {/* Header */}
+      <header className="fixed top-0 left-0 right-0 z-40 px-6 py-4 flex justify-between items-center backdrop-blur-md bg-[rgba(5,5,7,0.5)]">
+        <button className="p-2 -ml-2 text-white/80 hover:text-white">
+          <Menu size={24} />
+        </button>
+        <span className="font-display font-semibold tracking-wide">AI Companion</span>
+        <button className="p-2 -mr-2 text-white/80 hover:text-white">
+          <MoreHorizontal size={24} />
+        </button>
+      </header>
 
-      <div className="app-container">
-        <Sidebar 
-          isOpen={sidebarOpen}
-          conversations={conversations}
-          currentId={currentConversationId}
-          onSelect={loadConversation}
-          onNewChat={startNewChat}
-          onClose={() => setSidebarOpen(false)}
-          onDelete={async (id) => {
-            await api.deleteConversation(id);
-            setConversations(p => p.filter(c => c.id !== id));
-            if (currentConversationId === id) startNewChat();
-          }}
-        />
-
-        <main className="main-content">
-          <header className="header">
-            <button className="icon-btn" onClick={() => setSidebarOpen(true)}>
-              <Menu color="white" />
-            </button>
-            <div style={{fontWeight:600}}>MathGPT</div>
-            <button className="icon-btn" onClick={startNewChat}>
-              <Plus color="white" />
-            </button>
-          </header>
-
-          {messages.length === 0 ? (
-            <div className="empty-state">
-              <div className="empty-logo">⚡</div>
-              <h2>How can I help with math today?</h2>
-            </div>
-          ) : (
-            <div className="messages-container">
-              <div className="messages-wrapper">
-                {messages.map(msg => (
-                  <ChatMessage 
-                    key={msg.id} 
-                    message={msg} 
-                    userAvatar={user?.avatar_url} 
-                  />
-                ))}
-                {isSending && (
-                  <div className="message assistant">
-                    <div className="message-avatar">⚡</div>
-                    <div className="message-content">Thinking...</div>
-                  </div>
-                )}
-                <div ref={messagesEndRef} />
-              </div>
-            </div>
+      {/* Main Scroll Area */}
+      <main className="flex-1 overflow-y-auto pb-32 pt-20 px-4">
+        <AnimatePresence>
+          {showHero && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, height: 0, overflow: 'hidden' }}
+              transition={{ duration: 0.5 }}
+            >
+              <AvatarHero />
+            </motion.div>
           )}
+        </AnimatePresence>
 
-          <ChatInput onSend={handleSend} disabled={isSending} />
-        </main>
-      </div>
-    </>
+        <div className="max-w-2xl mx-auto mt-4">
+          <AnimatePresence mode="popLayout">
+            {messages.map((msg) => (
+              <ChatBubble key={msg.id} message={msg} />
+            ))}
+          </AnimatePresence>
+          
+          {isSending && (
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex gap-3 mb-6"
+            >
+              <div className="w-8 h-8 rounded-full bg-indigo-600/20 border border-indigo-500/50 flex items-center justify-center">
+                 <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" />
+              </div>
+              <div className="text-sm text-indigo-300 flex items-center">
+                Thinking...
+              </div>
+            </motion.div>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+      </main>
+
+      <ChatInput onSend={handleSend} disabled={isSending} />
+    </div>
   );
 }

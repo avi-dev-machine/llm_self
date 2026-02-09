@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, KeyboardEvent, useRef, useEffect } from 'react';
-import { Send, Mic } from 'lucide-react';
+import { useState, useRef, KeyboardEvent } from 'react';
+import { Send, Mic, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface ChatInputProps {
@@ -18,10 +18,7 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
     if (input.trim() && !disabled) {
       onSend(input.trim());
       setInput('');
-      // Reset height
-      if (textareaRef.current) {
-        textareaRef.current.style.height = 'auto';
-      }
+      if (textareaRef.current) textareaRef.current.style.height = 'auto';
     }
   };
 
@@ -33,21 +30,18 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
   };
 
   return (
-    <div className="input-container">
+    <div className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-[calc(env(safe-area-inset-bottom)+16px)] pt-4 bg-gradient-to-t from-[var(--bg-dark)] via-[var(--bg-dark)] to-transparent">
       <motion.div 
-        className="input-wrapper"
-        animate={{ 
-          boxShadow: isFocused ? '0 8px 32px rgba(139, 127, 212, 0.25)' : '0 8px 32px rgba(0, 0, 0, 0.08)',
-          borderColor: isFocused ? 'rgba(156, 173, 223, 0.8)' : 'rgba(255, 255, 255, 0.5)'
-        }}
-        transition={{ duration: 0.2 }}
+        className={`relative flex items-end gap-3 p-2 rounded-3xl border transition-all duration-300 ${
+          isFocused 
+            ? 'bg-[rgba(20,20,30,0.9)] border-indigo-500/50 shadow-[0_0_20px_rgba(99,102,241,0.2)]' 
+            : 'bg-[rgba(20,20,30,0.6)] border-[var(--border-glass)] backdrop-blur-xl'
+        }`}
+        animate={{ y: 0, opacity: 1 }}
+        initial={{ y: 50, opacity: 0 }}
       >
-        <button 
-          className="icon-btn" 
-          style={{ width: '36px', height: '36px', border: 'none', background: 'transparent' }}
-          disabled
-        >
-          <Mic size={20} color="var(--text-muted)" />
+        <button className="p-3 text-indigo-400 hover:text-indigo-300 transition-colors">
+          <Sparkles size={20} />
         </button>
 
         <textarea
@@ -60,7 +54,8 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
           placeholder="Ask anything..."
           disabled={disabled}
           rows={1}
-          className="input-box"
+          className="flex-1 bg-transparent border-none outline-none text-[var(--text-primary)] placeholder-[var(--text-muted)] resize-none py-3 max-h-32 min-h-[24px]"
+          style={{ height: 'auto' }}
           onInput={(e) => {
             const target = e.target as HTMLTextAreaElement;
             target.style.height = 'auto';
@@ -68,21 +63,15 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
           }}
         />
 
-        <AnimatePresence>
-          {input.trim() && (
-            <motion.button
-              initial={{ scale: 0, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0, opacity: 0 }}
-              onClick={handleSubmit}
-              disabled={disabled}
-              className="send-btn"
-              whileTap={{ scale: 0.9 }}
-            >
-              <Send size={20} />
-            </motion.button>
-          )}
-        </AnimatePresence>
+        <motion.button
+          onClick={handleSubmit}
+          disabled={!input.trim() || disabled}
+          className="p-3 rounded-full bg-indigo-600 text-white shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+          whileTap={{ scale: 0.9 }}
+          animate={{ scale: input.trim() ? 1 : 0.8, opacity: input.trim() ? 1 : 0.5 }}
+        >
+          <Send size={18} />
+        </motion.button>
       </motion.div>
     </div>
   );
