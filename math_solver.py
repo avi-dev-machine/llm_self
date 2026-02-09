@@ -1,12 +1,12 @@
 """
-JEE/Olympiad Math Problem Solver - Local Phi-4 Model
-Uses Microsoft Phi-4 via Hugging Face Transformers for local inference.
+JEE/Olympiad Math Problem Solver - Groq API
+Token-efficient, LaTeX-formatted solutions using Groq API.
 """
 
-import torch
-from transformers import AutoTokenizer, AutoModelForCausalLM
+import os
+from openai import OpenAI
 
-# Math-specific system prompt
+
 MATH_SYSTEM_PROMPT = """You are a JEE/Olympiad math expert. Provide CONCISE step-by-step solutions.
 
 FORMAT RULES:
@@ -23,66 +23,48 @@ Use numpy for calculations. Include proper labels and title."""
 
 
 class MathSolver:
-    """Math solver using local Phi-4 model."""
+    """Math solver using Groq API."""
     
-    def __init__(self, model_name: str = "microsoft/phi-4"):
-        print(f"Loading {model_name}... (this may take a few minutes)")
+    def __init__(self, api_key: str = None):
+        api_key = api_key or os.getenv("GROQ_API_KEY")
+        if not api_key:
+            raise ValueError("GROQ_API_KEY not found")
         
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.model = AutoModelForCausalLM.from_pretrained(
-            model_name,
-            torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
-            device_map="auto"
+        self.client = OpenAI(
+            api_key=api_key,
+            base_url="https://api.groq.com/openai/v1"
         )
-        print(f"Model loaded on {self.model.device}")
-    
-    def _generate(self, messages: list[dict], max_tokens: int = 1024) -> str:
-        """Generate response from messages."""
-        inputs = self.tokenizer.apply_chat_template(
-            messages,
-            add_generation_prompt=True,
-            tokenize=True,
-            return_dict=True,
-            return_tensors="pt"
-        ).to(self.model.device)
-        
-        outputs = self.model.generate(
-            **inputs,
-            max_new_tokens=max_tokens,
-            do_sample=True,
-            temperature=0.7,
-            top_p=0.9,
-            pad_token_id=self.tokenizer.eos_token_id
-        )
-        
-        # Decode only the generated tokens
-        response = self.tokenizer.decode(
-            outputs[0][inputs["input_ids"].shape[-1]:],
-            skip_special_tokens=True
-        )
-        return response.strip()
+        self.model = "llama-3.3-70b-versatile"
     
     def solve(self, problem: str) -> str:
         """Get concise LaTeX-formatted solution."""
-        messages = [
-            {"role": "system", "content": MATH_SYSTEM_PROMPT},
-            {"role": "user", "content": problem}
-        ]
-        
         try:
-            return self._generate(messages, max_tokens=1024)
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": MATH_SYSTEM_PROMPT},
+                    {"role": "user", "content": problem}
+                ],
+                temperature=0.3,
+                max_tokens=1500
+            )
+            return response.choices[0].message.content
         except Exception as e:
             return f"Error: {str(e)}"
     
     def generate_graph_code(self, problem: str) -> str:
         """Generate only matplotlib code for the problem."""
-        messages = [
-            {"role": "system", "content": GRAPH_ONLY_PROMPT},
-            {"role": "user", "content": problem}
-        ]
-        
         try:
-            return self._generate(messages, max_tokens=600)
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": GRAPH_ONLY_PROMPT},
+                    {"role": "user", "content": problem}
+                ],
+                temperature=0.2,
+                max_tokens=800
+            )
+            return response.choices[0].message.content
         except Exception as e:
             return f"Error: {str(e)}"
     

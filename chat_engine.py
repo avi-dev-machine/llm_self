@@ -25,8 +25,8 @@ GRAPH_OFFER_PATTERNS = [
 class ChatEngine:
     """Manages conversational flow with the AI."""
     
-    def __init__(self, model_name: str = "microsoft/phi-4"):
-        self.solver = MathSolver(model_name=model_name)
+    def __init__(self, api_key: str = None):
+        self.solver = MathSolver(api_key=api_key)
         self.renderer = GraphRenderer()
     
     def should_offer_graph(self, problem: str, solution: str) -> bool:

@@ -47,11 +47,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize chat engine with local Phi-4 model
-print("Initializing ChatEngine with local Phi-4 model...")
+# Initialize chat engine
+API_KEY = os.getenv("GROQ_API_KEY")
+if not API_KEY:
+    print("WARNING: GROQ_API_KEY not found in environment variables. Chat features will fail.")
+
 try:
-    chat_engine = ChatEngine()
-    print("ChatEngine initialized successfully!")
+    chat_engine = ChatEngine(api_key=API_KEY)
 except Exception as e:
     print(f"Error initializing ChatEngine: {e}")
     chat_engine = None
