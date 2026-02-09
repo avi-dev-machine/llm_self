@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { api, Message, ConversationListItem } from '@/lib/api';
 import ChatMessage from '@/components/ChatMessage';
 import Sidebar from '@/components/Sidebar';
@@ -16,8 +17,9 @@ export default function Home() {
   const [conversations, setConversations] = useState<ConversationListItem[]>([]);
   const [currentConversationId, setCurrentConversationId] = useState<number | null>(null);
   const [isSending, setIsSending] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [input, setInput] = useState('');
+  const [shouldOfferGraph, setShouldOfferGraph] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -68,6 +70,7 @@ export default function Home() {
       const conv = await api.getConversation(id);
       setMessages(conv.messages);
       setCurrentConversationId(id);
+      setSidebarOpen(false);
     } catch (error) {
       console.error('Failed to load conversation:', error);
     }
@@ -76,6 +79,8 @@ export default function Home() {
   const startNewChat = () => {
     setMessages([]);
     setCurrentConversationId(null);
+    setSidebarOpen(false);
+    setShouldOfferGraph(false);
   };
 
   const handleSend = async () => {
@@ -83,6 +88,7 @@ export default function Home() {
 
     const content = input.trim();
     setInput('');
+    setShouldOfferGraph(false);
     
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
@@ -108,6 +114,11 @@ export default function Home() {
       }
 
       setMessages(prev => [...prev, response.message]);
+      
+      // Only offer graph if backend says so AND there's no graph already
+      if (response.should_offer_graph && !response.message.has_graph) {
+        setShouldOfferGraph(true);
+      }
     } catch (error) {
       console.error('Failed to send message:', error);
       setMessages(prev => prev.filter(m => m.id !== tempUserMsg.id));
@@ -149,13 +160,23 @@ export default function Home() {
     textareaRef.current?.focus();
   };
 
+  const handleGraphRequest = async () => {
+    if (isSending) return;
+    setShouldOfferGraph(false);
+    setInput('Yes, please show the graph');
+    setTimeout(() => handleSend(), 100);
+  };
+
   if (isLoading) {
     return (
-      <div className="auth-container">
-        <div style={{ textAlign: 'center' }}>
-          <div className="auth-logo">🧮</div>
-          <p style={{ color: 'var(--text-secondary)' }}>Loading...</p>
-        </div>
+      <div className="loading-container">
+        <motion.div 
+          className="loading-spinner"
+          animate={{ y: [0, -12, 0] }}
+          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+        >
+          🧮
+        </motion.div>
       </div>
     );
   }
@@ -166,6 +187,177 @@ export default function Home() {
 
   return (
     <div className="app-container">
+      {/* Header */}
+      <header className="header">
+        <div className="header-left">
+          <motion.button
+            className="icon-btn"
+            onClick={() => setSidebarOpen(true)}
+            whileTap={{ scale: 0.95 }}
+          >
+            <Menu size={20} />
+          </motion.button>
+          <div className="header-info">
+            <h1>Math AI</h1>
+            <div className="header-status">
+              <span className="status-dot" />
+              <span>Online</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="header-actions">
+          <motion.button
+            className="icon-btn"
+            onClick={startNewChat}
+            whileTap={{ scale: 0.95 }}
+            title="New Chat"
+          >
+            <Plus size={20} />
+          </motion.button>
+          <motion.button
+            className="icon-btn"
+            onClick={handleLogout}
+            whileTap={{ scale: 0.95 }}
+            title="Logout"
+          >
+            <LogOut size={18} />
+          </motion.button>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="main-content">
+        {messages.length === 0 ? (
+          <>
+            {/* Hero Section */}
+            <motion.div 
+              className="hero-section"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+            >
+              <div className="hero-card">
+                <motion.div 
+                  className="hero-avatar"
+                  animate={{ y: [0, -12, 0] }}
+                  transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                >
+                  🧮
+                </motion.div>
+                <h2 className="hero-title">Hi {user?.name?.split(' ')[0] || 'there'}!</h2>
+                <p className="hero-subtitle">I&apos;m your AI math tutor for JEE & Olympiad prep</p>
+              </div>
+            </motion.div>
+
+            {/* Quick Actions */}
+            <motion.div 
+              className="quick-actions"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+            >
+              <div className="quick-actions-scroll">
+                <motion.button 
+                  className="quick-action-pill"
+                  onClick={() => handleSuggestionClick("Find the derivative of x³ - 3x² + 2x")}
+                  whileTap={{ scale: 0.97 }}
+                >
+                  📐 Derivatives
+                </motion.button>
+                <motion.button 
+                  className="quick-action-pill"
+                  onClick={() => handleSuggestionClick("Solve: ∫(x² + 2x + 1)dx")}
+                  whileTap={{ scale: 0.97 }}
+                >
+                  ∫ Integration
+                </motion.button>
+                <motion.button 
+                  className="quick-action-pill"
+                  onClick={() => handleSuggestionClick("Plot the graph of y = sin(x) + cos(x)")}
+                  whileTap={{ scale: 0.97 }}
+                >
+                  📊 Graph a function
+                </motion.button>
+                <motion.button 
+                  className="quick-action-pill"
+                  onClick={() => handleSuggestionClick("If x + 1/x = 3, find x² + 1/x²")}
+                  whileTap={{ scale: 0.97 }}
+                >
+                  🧩 Algebra
+                </motion.button>
+              </div>
+            </motion.div>
+          </>
+        ) : (
+          <div className="messages-container">
+            <div className="messages-wrapper">
+              <AnimatePresence mode="popLayout">
+                {messages.map((msg, index) => (
+                  <ChatMessage 
+                    key={msg.id} 
+                    message={msg} 
+                    userAvatar={user?.avatar_url} 
+                    userName={user?.name}
+                    isLast={index === messages.length - 1}
+                    showGraphButton={shouldOfferGraph && index === messages.length - 1 && msg.role === 'assistant'}
+                    onGraphRequest={handleGraphRequest}
+                  />
+                ))}
+              </AnimatePresence>
+              
+              {isSending && (
+                <motion.div 
+                  className="message assistant"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                >
+                  <div className="message-avatar">🤖</div>
+                  <div className="message-content">
+                    <div className="typing-indicator">
+                      <span className="typing-dot" />
+                      <span className="typing-dot" />
+                      <span className="typing-dot" />
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+          </div>
+        )}
+      </main>
+
+      {/* Input Bar */}
+      <div className="input-container">
+        <div className="input-wrapper">
+          <textarea
+            ref={textareaRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Ask me a math problem..."
+            disabled={isSending}
+            rows={1}
+            className="input-box"
+            onInput={(e) => {
+              const target = e.target as HTMLTextAreaElement;
+              target.style.height = 'auto';
+              target.style.height = Math.min(target.scrollHeight, 120) + 'px';
+            }}
+          />
+          <motion.button
+            onClick={handleSend}
+            disabled={isSending || !input.trim()}
+            className="send-btn"
+            whileTap={{ scale: 0.92 }}
+          >
+            <Send size={20} />
+          </motion.button>
+        </div>
+      </div>
+
+      {/* Sidebar */}
       <Sidebar
         isOpen={sidebarOpen}
         conversations={conversations}
@@ -175,119 +367,6 @@ export default function Home() {
         onDelete={handleDeleteConversation}
         onClose={() => setSidebarOpen(false)}
       />
-
-      <div className="main-content">
-        <header className="header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '8px' }}
-            >
-              <Menu size={20} />
-            </button>
-            <button
-              onClick={startNewChat}
-              style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '8px' }}
-              title="New Chat"
-            >
-              <Plus size={20} />
-            </button>
-          </div>
-
-          <h1 className="header-title">Math Agent</h1>
-
-          <div className="user-menu">
-            {user && (
-              <>
-                {user.avatar_url ? (
-                  <img src={user.avatar_url} alt="" className="user-avatar" />
-                ) : (
-                  <div className="user-avatar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px' }}>
-                    {user.name.charAt(0)}
-                  </div>
-                )}
-              </>
-            )}
-            <button
-              onClick={handleLogout}
-              style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '8px' }}
-              title="Logout"
-            >
-              <LogOut size={18} />
-            </button>
-          </div>
-        </header>
-
-        <div className="messages-container">
-          {messages.length === 0 ? (
-            <div className="empty-state">
-              <div className="empty-icon">🧮</div>
-              <h2 className="empty-title">How can I help you today?</h2>
-              <p className="empty-subtitle">
-                I&apos;m your AI math tutor for JEE and Olympiad preparation. 
-                Ask me any problem and I&apos;ll solve it step by step.
-              </p>
-              <div className="suggestions">
-                <button className="suggestion-chip" onClick={() => handleSuggestionClick("Find the derivative of x³ - 3x² + 2x")}>
-                  Derivative of x³ - 3x² + 2x
-                </button>
-                <button className="suggestion-chip" onClick={() => handleSuggestionClick("Solve: ∫(x² + 2x + 1)dx")}>
-                  Integrate x² + 2x + 1
-                </button>
-                <button className="suggestion-chip" onClick={() => handleSuggestionClick("If x + 1/x = 3, find x² + 1/x²")}>
-                  x + 1/x = 3, find x² + 1/x²
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="messages-wrapper">
-              {messages.map((msg) => (
-                <ChatMessage key={msg.id} message={msg} userAvatar={user?.avatar_url} userName={user?.name} />
-              ))}
-              {isSending && (
-                <div className="message assistant">
-                  <div className="message-avatar">🤖</div>
-                  <div className="message-content">
-                    <div className="typing-indicator">
-                      <span className="typing-dot"></span>
-                      <span className="typing-dot"></span>
-                      <span className="typing-dot"></span>
-                    </div>
-                  </div>
-                </div>
-              )}
-              <div ref={messagesEndRef} />
-            </div>
-          )}
-        </div>
-
-        <div className="input-container">
-          <div className="input-wrapper">
-            <textarea
-              ref={textareaRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Ask me a math problem..."
-              disabled={isSending}
-              rows={1}
-              className="input-box"
-              onInput={(e) => {
-                const target = e.target as HTMLTextAreaElement;
-                target.style.height = 'auto';
-                target.style.height = Math.min(target.scrollHeight, 150) + 'px';
-              }}
-            />
-            <button
-              onClick={handleSend}
-              disabled={isSending || !input.trim()}
-              className="send-btn"
-            >
-              <Send size={20} />
-            </button>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
