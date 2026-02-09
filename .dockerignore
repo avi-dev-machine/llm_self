@@ -1,8 +1,29 @@
-/venv
-/.env
-/__pycache__
-/outputs
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Frontend (deployed separately to Vercel)
+frontend/
+
+# Python
+__pycache__/
 *.pyc
+*.pyo
+venv/
+.venv/
+
+# Environment and secrets
+.env
+*.json
+
+# Database
+*.db
+
+# Output files
+outputs/
+
+# Misc
+README.md
 .DS_Store
-/frontend
-render.yaml
+*.md
